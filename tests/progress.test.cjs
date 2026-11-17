@@ -2,7 +2,9 @@ const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const context = vm.createContext({});
+const context = vm.createContext({ useWorkflowRunStore: {
+  getState: () => ({activeNodeId: null, runState: {status: 'idle'}}), subscribe: () => {}
+} });
 vm.runInContext(readFileSync(require('node:path').join(__dirname, '../assets/progress.js'), 'utf8'), context);
 const view = (step, progress, elapsed = 20) => context.modlyProgressView({ blockStep: step, blockProgress: progress }, elapsed);
 test('loading never claims a percentage or a remaining duration', () => {
@@ -34,4 +36,20 @@ test('invalid progress, bounds and zero steps remain safe', () => {
 test('remaining duration waits for enough evidence and covers only diffusion', () => {
   assert.equal(view('Diffusion 1/30', 14, 1).eta, 'Décodage et export à suivre');
   assert.equal(view('Diffusion 30/30', 80).eta, 'Décodage et export à suivre');
+});
+test('shared clock survives page changes and resets for a new node and run', () => {
+  const clock = {};
+  const update = (id, step, status, time) => context.modlyProgressUpdateClock({
+    activeNodeId: id, activeWorkflowId: 'workflow', runState: {status, blockStep: step}
+  }, clock, time);
+  update('generate', 'Loading', 'running', 1000);
+  update('generate', 'Diffusion 0/30', 'running', 5000);
+  update('generate', 'Diffusion 3/30', 'running', 7000);
+  assert.equal(clock.startedAt, 1000);
+  assert.equal(clock.phaseStartedAt, 5000);
+  update('optimize', 'Working', 'running', 10000);
+  assert.equal(clock.startedAt, 10000);
+  update(null, 'Done', 'done', 12000);
+  update('generate', 'Loading', 'running', 15000);
+  assert.equal(clock.startedAt, 15000);
 });

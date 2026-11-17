@@ -78,7 +78,10 @@ def build_asar(header, data, replacements):
 
 def patch_renderer(source, component):
     if MARKER in source:
-        return source
+        start, end = source.index(MARKER), source.find("function BaseNode({", source.index(MARKER))
+        if end < 0:
+            raise ValueError("Cannot update existing progress component")
+        return source[:start] + MARKER + "\n" + component + "\n" + source[end:]
     anchor = "function BaseNode({"
     insertion = "        subheader && /* @__PURE__ */"
     if source.count(anchor) != 1 or source.count(insertion) != 1:
@@ -134,7 +137,10 @@ def patch_hunyuan(source):
 
 def patch_generate_page(source, component):
     if MARKER in source:
-        return source
+        start, end = source.index(MARKER), source.find("function GeneratePage() {", source.index(MARKER))
+        if end < 0:
+            raise ValueError("Cannot update existing Generate progress component")
+        return source[:start] + MARKER + "\n" + component + "\n" + source[end:]
     anchor = "function GeneratePage() {"
     insertion = '      firstPreflightIssue && !isRunning && /* @__PURE__ */'
     if source.count(anchor) != 1 or source.count(insertion) != 1:

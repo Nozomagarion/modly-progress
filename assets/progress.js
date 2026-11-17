@@ -24,26 +24,53 @@ function modlyProgressView(run, elapsed) {
     eta: "Temps restant inconnu" };
 }
 
+function modlyProgressUpdateClock(snapshot, clock, now) {
+  const active = snapshot.activeNodeId != null && ["running", "paused"].includes(snapshot.runState.status);
+  if (!active) {
+    clock.running = false;
+    return;
+  }
+  const phase = /Diffusion \d+\/\d+/.test(snapshot.runState.blockStep || "") ? "diffusion" : "other";
+  if (!clock.running || clock.nodeId !== snapshot.activeNodeId || clock.workflowId !== snapshot.activeWorkflowId) {
+    clock.startedAt = now;
+    clock.phaseStartedAt = now;
+    clock.phase = phase;
+  } else if (clock.phase !== phase) {
+    clock.phaseStartedAt = now;
+    clock.phase = phase;
+  }
+  clock.running = true;
+  clock.nodeId = snapshot.activeNodeId;
+  clock.workflowId = snapshot.activeWorkflowId;
+}
+
+// The two UI pages share this clock, so navigating does not reset elapsed time.
+const modlyProgressClock = globalThis.__modlyProgressClockV1 ?? (globalThis.__modlyProgressClockV1 = {});
+if (!modlyProgressClock.subscribed) {
+  modlyProgressUpdateClock(useWorkflowRunStore.getState(), modlyProgressClock, Date.now());
+  useWorkflowRunStore.subscribe((snapshot) => modlyProgressUpdateClock(snapshot, modlyProgressClock, Date.now()));
+  modlyProgressClock.subscribed = true;
+}
+
 function ModlyProgressPanel({ nodeId }) {
   const activeId = useWorkflowRunStore((s) => s.activeNodeId);
   const run = useWorkflowRunStore((s) => s.runState);
   const active = (nodeId === undefined || activeId === nodeId) && activeId != null && (run.status === "running" || run.status === "paused");
   const [seconds, setSeconds] = reactExports.useState(0);
-  const phaseStart = reactExports.useRef(null);
   const phaseKey = /Diffusion \d+\/\d+/.test(run.blockStep || "") ? "diffusion" : "other";
   const [phaseSeconds, setPhaseSeconds] = reactExports.useState(0);
   reactExports.useEffect(() => {
     if (!active) return;
-    const start = Date.now();
-    setSeconds(0);
+    const start = modlyProgressClock.startedAt ?? Date.now();
+    setSeconds((Date.now() - start) / 1000);
     const timer = setInterval(() => setSeconds((Date.now() - start) / 1000), 1000);
     return () => clearInterval(timer);
   }, [active, activeId]);
   reactExports.useEffect(() => {
     if (!active) return;
-    phaseStart.current = Date.now();
-    setPhaseSeconds(0);
-    const timer = setInterval(() => setPhaseSeconds((Date.now() - phaseStart.current) / 1000), 1000);
+    const start = modlyProgressClock.phaseStartedAt ?? Date.now();
+    setPhaseSeconds((Date.now() - start) / 1000);
+    const timer = setInterval(() => setPhaseSeconds((Date.now() - start) / 1000), 1000);
     return () => clearInterval(timer);
   }, [active, activeId, phaseKey]);
   if (!active) return null;
