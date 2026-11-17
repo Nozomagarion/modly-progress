@@ -20,7 +20,7 @@ un panneau aux nodes existants. **Ce n'est pas une extension à coller dans
 ## Installation (Windows)
 
 Python 3.10+ requis, aucune dépendance Python supplémentaire.
-Installation validée sur le build Modly présent au 17 novembre 2026 ; les versions
+Installation validée sur **Modly 0.4.3 sous Windows**, le 17 novembre 2026 ; les versions
 dont la structure diffère sont refusées avant toute modification.
 
 1. Télécharger ce dépôt ou le cloner.
@@ -70,6 +70,9 @@ python install.py --restore "CHEMIN_DU_DOSSIER_DE_SAUVEGARDE"
 Les empreintes sont vérifiées. Si Modly a été mis à jour depuis, l'outil refuse
 d'écraser les fichiers de la nouvelle version. Une mise à jour de Modly peut
 remplacer le correctif ; relancer d'abord `--dry-run` pour vérifier la compatibilité.
+
+Si plusieurs versions de l'add-on ont été installées successivement, restaurer
+leurs sauvegardes dans l'ordre inverse pour revenir à l'installation initiale.
 
 Les chemins peuvent être précisés avec `--asar`, `--generator` et `--backups`.
 Ne pas publier les sauvegardes : elles contiennent votre installation d'origine.
